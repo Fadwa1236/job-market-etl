@@ -1,0 +1,45 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: job_market_postgres
+
+    environment:
+      POSTGRES_DB: job_market
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U etl_user -d job_market"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  etl:
+    build: .
+    container_name: job_market_etl
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: job_market
+      DB_USER: etl_user
+      DB_PASSWORD: etl_password
+
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
